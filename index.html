@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz + Repaso (SRS)</title>
+  <style>
+    :root{
+      --bg:#0f172a;         /* slate-900 */
+      --panel:#111827;      /* gray-900 */
+      --muted:#334155;      /* slate-700 */
+      --text:#e5e7eb;       /* gray-200 */
+      --accent:#22d3ee;     /* cyan-400 */
+      --accent-2:#a78bfa;   /* violet-400 */
+      --ok:#22c55e;         /* green-500 */
+      --err:#ef4444;        /* red-500 */
+      --warn:#f59e0b;       /* amber-500 */
+      --card:#0b1225;       /* darker */
+      --chip:#1f2937;       /* gray-800 */
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 85% -10%, rgba(167,139,250,.18), transparent 65%),
+                  radial-gradient(800px 600px at -10% 110%, rgba(34,211,238,.15), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:18px 22px; position:sticky; top:0; backdrop-filter: blur(6px);
+      background: linear-gradient( to bottom, rgba(15,23,42,.85), rgba(15,23,42,.55) 60%, transparent );
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      z-index:5;
+    }
+    .brand{display:flex; align-items:center; gap:12px; font-weight:700}
+    .logo{width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow: var(--shadow)}
+    .brand small{opacity:.8; font-weight:500}
+
+    .wrap{display:grid; grid-template-columns: 320px 1fr; gap:16px; padding:16px; max-width:1200px; margin:0 auto}
+    @media (max-width: 900px){ .wrap{grid-template-columns: 1fr; } }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.08); border-radius: var(--radius);
+      padding:14px; box-shadow: var(--shadow);
+    }
+    .panel h3{margin:6px 0 10px 0}
+    textarea{
+      width:100%; min-height:170px; resize:vertical; border-radius:12px; padding:12px; line-height:1.35;
+      background: #0b1327; color: var(--text); border:1px solid rgba(255,255,255,.1);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:13px
+    }
+    .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    .btn{
+      appearance:none; border:none; cursor:pointer; padding:10px 14px; border-radius:12px; font-weight:700; letter-spacing:.2px;
+      color:#0b1020; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow: var(--shadow);
+      transition: transform .06s ease, filter .15s ease; user-select:none
+    }
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform: translateY(1px)}
+    .btn.ghost{background:transparent; color:var(--text); border:1px solid rgba(255,255,255,.12)}
+    .btn.warn{background:linear-gradient(135deg, var(--warn), #facc15)}
+    .btn.ok{background:linear-gradient(135deg, var(--ok), #86efac)}
+    .btn.err{background:linear-gradient(135deg, var(--err), #fb7185); color:white}
+    .chip{padding:6px 10px; border-radius:999px; background:var(--chip); border:1px solid rgba(255,255,255,.1); font-size:12px; opacity:.9}
+
+    .card{ background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); padding:18px; box-shadow: var(--shadow) }
+    .question{font-size:20px; font-weight:800; margin:0 0 12px 0}
+    .options{display:grid; gap:10px}
+    .opt{
+      display:flex; align-items:center; gap:10px; padding:12px 12px; border-radius:12px; background:var(--card); border:1px solid rgba(255,255,255,.06);
+      cursor:pointer; transition: filter .15s ease, transform .06s ease
+    }
+    .opt:hover{filter: brightness(1.1)}
+    .opt input{accent-color: var(--accent-2); width:18px; height:18px}
+    .opt.user-correct{background:rgba(34,197,94,.15); border:2px solid var(--ok)}
+    .opt.user-incorrect{background:rgba(239,68,68,.15); border:2px solid var(--err)}
+    .opt.disabled{cursor:not-allowed; pointer-events:none}
+
+    .footer{display:flex; align-items:center; justify-content:space-between; margin-top:14px; gap:12px}
+    .progress{height:8px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden}
+    .progress>div{height:100%; background: linear-gradient(90deg,var(--accent),var(--accent-2)); width:0%}
+
+    .feedback{margin-top:10px; padding:10px 12px; border-radius:10px; font-weight:700}
+    .feedback.ok{background:rgba(34,197,94,.12); color:#86efac; border:1px solid rgba(34,197,94,.35)}
+    .feedback.err{background:rgba(239,68,68,.12); color:#fca5a5; border:1px solid rgba(239,68,68,.35)}
+
+    .stack{display:flex; flex-wrap:wrap; gap:8px}
+    .muted{opacity:.8}
+    .bank-item{
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      padding:8px 10px; background:var(--chip); border:1px solid rgba(255,255,255,.12);
+      border-radius:10px; font-size:13px; margin-bottom:6px
+    }
+    .bank-item:hover{background:rgba(255,255,255,.08)}
+    .bank-item button{
+      padding:4px 8px; font-size:11px; border-radius:6px; border:none;
+      cursor:pointer; font-weight:600; transition: opacity .15s
+    }
+    .bank-item button:hover{opacity:.8}
+    .bank-item .load-btn{background:var(--accent); color:#0b1020}
+    .bank-item .delete-btn{background:var(--err); color:white}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <div>Quiz & Repaso ✨</div>
+        <small>Sistema con aleatorización, guardado local y repaso de erradas</small>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="btnExportar">Exportar progreso</button>
+      <button class="btn warn" id="btnLimpiar">Reiniciar progreso</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Panel lateral -->
+    <section class="panel">
+      <h3>📎 Pega tu JSON</h3>
+      <p class="muted" style="margin-top:-6px">Estructura esperada:
+        <code>[{question, options[], correct[int[]]}]</code>
+      </p>
+      <textarea id="jsonInput" spellcheck="false" placeholder='Pega aquí tu JSON de preguntas...'></textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="btnCargar" class="btn">Cargar JSON</button>
+        <button id="btnGuardar" class="btn ghost">Guardar como...</button>
+      </div>
+      <div id="banksMenu" style="margin-top:12px; display:none">
+        <hr style="border-color: rgba(255,255,255,.08); margin:12px 0">
+        <h4 style="margin:0 0 8px 0; font-size:14px">📚 Bancos Guardados</h4>
+        <div id="banksList" class="stack"></div>
+      </div>
+      <hr style="border-color: rgba(255,255,255,.08); margin:14px 0">
+      <div class="stack">
+        <span class="chip" id="chipTotal">Preguntas: 0</span>
+        <span class="chip" id="chipErr">Erradas pendientes: 0</span>
+        <span class="chip" id="chipModo">Modo: Examen</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnNuevoExamen" class="btn ok">Nuevo Examen</button>
+        <button id="btnModo" class="btn">Cambiar a Repaso</button>
+      </div>
+      <p class="muted" style="margin-top:12px; font-size:12px">Consejo: guarda el JSON y tu avance se recordará automáticamente en este navegador.</p>
+    </section>
+
+    <!-- Zona principal del cuestionario -->
+    <section>
+      <div class="card">
+        <div class="question" id="qText">Carga un banco de preguntas para empezar</div>
+        <div class="options" id="options"></div>
+
+        <div class="footer">
+          <div class="row">
+            <button id="btnComprobar" class="btn ok">Comprobar</button>
+            <button id="btnSiguiente" class="btn ghost">Siguiente ▶</button>
+          </div>
+          <div style="min-width:180px; flex:1">
+            <div class="progress"><div id="bar"></div></div>
+            <div class="muted" style="font-size:12px; margin-top:6px"><span id="index"></span></div>
+          </div>
+        </div>
+        <div id="feedback" class="feedback" style="display:none"></div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <strong>📚 Sistema de Repaso (SRS):</strong>
+        <p class="muted" style="margin:8px 0 0 0">Cada pregunta tiene niveles 1→5. Si aciertas, sube de nivel y se programa más lejos (10m → 1h → 1d → 3d → 7d). Si fallas, vuelve al nivel 1 y se prioriza en el modo Repaso.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ====== Utilidades ======
+    const LS_KEYS = {
+      DATA: 'quiz_data_v1',
+      PROG: 'quiz_prog_v1',
+      BANKS: 'quiz_banks_v1'  // Nuevo: almacena múltiples bancos con nombres
+    };
+
+    const INTERVALS_MS = [0, 10*60e3, 60*60e3, 24*60*60e3, 3*24*60*60e3, 7*24*60*60e3];
+
+    const $ = (id)=> document.getElementById(id);
+    const shuffle = (arr)=> arr.map(v=>({v, r:Math.random()})).sort((a,b)=>a.r-b.r).map(x=>x.v);
+    const now = ()=> Date.now();
+    const hash = (s)=> {
+      // djb2
+      let h = 5381; for(let i=0;i<s.length;i++){ h = ((h<<5)+h) + s.charCodeAt(i); h|=0 }
+      return String(h);
+    };
+
+    // ====== Estado ======
+    let bank = [];           // [{question, options[], correct[index[]]}]
+    let order = [];          // indices de preguntas (modo examen)
+    let idx = 0;             // índice actual en "order"
+    let current = null;      // objeto de pregunta actual + mapping de mezcla
+    let mode = 'exam';       // 'exam' | 'review' | 'review-failed'
+    let progress = {};       // por id: {level, next, seen, wrongs}
+    let examSession = {      // seguimiento de la sesión de examen
+      answered: [],          // [{question, correct: bool, correctAnswers, userAnswers}]
+      started: false
+    };
+    let failedQueue = [];    // cola de índices de preguntas erradas para repaso
+    let failedIdx = 0;       // índice actual en failedQueue
+
+    function persist(){ localStorage.setItem(LS_KEYS.PROG, JSON.stringify(progress)); }
+
+    function loadProgress(){
+      try{ progress = JSON.parse(localStorage.getItem(LS_KEYS.PROG) || '{}') }catch{ progress = {} }
+    }
+
+    function ensureEntry(q){
+      const id = hash(q.question + '|' + q.options.join('||'));
+      if(!progress[id]){
+        progress[id] = { level:1, next:0, seen:0, wrongs:0, id };
+      }
+      return progress[id];
+    }
+
+    function loadSavedDataToTextarea(){
+      const saved = localStorage.getItem(LS_KEYS.DATA);
+      if(saved){ $('jsonInput').value = saved; }
+    }
+
+    function setBankFromJSON(json){
+      bank = json;
+      // validar estructura básica
+      if(!Array.isArray(bank)) throw new Error('El JSON debe ser un array');
+      for(const q of bank){
+        if(typeof q.question !== 'string' || !Array.isArray(q.options) || !Array.isArray(q.correct)){
+          throw new Error('Cada ítem debe tener {question, options[], correct[]}');
+        }
+      }
+      // inicializar progreso
+      bank.forEach(ensureEntry);
+      persist();
+      // preparar orden y mezclar automáticamente
+      order = shuffle(bank.map((_,i)=>i));
+      idx = 0;
+      // Iniciar sesión de examen
+      examSession = { answered: [], started: true };
+      updateChips();
+      renderCurrent();
+    }
+
+    function updateChips(){
+      const errPend = getReviewQueue().length;
+      $('chipTotal').textContent = `Preguntas: ${bank.length}`;
+      $('chipErr').textContent = `Erradas pendientes: ${errPend}`;
+      $('chipModo').textContent = `Modo: ${mode==='exam'? 'Examen':'Repaso'}`;
+    }
+
+    function saveJSON(){
+      // Pedir nombre para el banco
+      const name = prompt('¿Cómo quieres llamar a este banco de preguntas?');
+      if(!name || name.trim() === '') return;
+
+      try{
+        const data = JSON.parse($('jsonInput').value.trim());
+
+        // Obtener bancos guardados
+        let banks = {};
+        try{ banks = JSON.parse(localStorage.getItem(LS_KEYS.BANKS) || '{}') }catch{}
+
+        // Guardar el nuevo banco
+        banks[name.trim()] = data;
+        localStorage.setItem(LS_KEYS.BANKS, JSON.stringify(banks));
+
+        // Actualizar la vista de bancos
+        renderBanksList();
+        toast(`Banco "${name.trim()}" guardado ✅`);
+      }catch(e){ alert('Error al guardar: ' + e.message); }
+    }
+
+    function loadJSON(){
+      try{
+        const data = JSON.parse($('jsonInput').value.trim());
+        setBankFromJSON(data);
+        toast('Banco cargado ✅');
+      }catch(e){ alert('Error al leer JSON: ' + e.message); }
+    }
+
+    function renderBanksList(){
+      let banks = {};
+      try{ banks = JSON.parse(localStorage.getItem(LS_KEYS.BANKS) || '{}') }catch{}
+
+      const list = $('banksList');
+      const menu = $('banksMenu');
+
+      if(Object.keys(banks).length === 0){
+        menu.style.display = 'none';
+        return;
+      }
+
+      menu.style.display = 'block';
+      list.innerHTML = '';
+
+      Object.keys(banks).forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'bank-item';
+        item.innerHTML = `
+          <span>${name} (${banks[name].length} preguntas)</span>
+          <div style="display:flex; gap:4px">
+            <button class="load-btn" onclick="loadBank('${name.replace(/'/g, "\\'")}')">Cargar</button>
+            <button class="delete-btn" onclick="deleteBank('${name.replace(/'/g, "\\'")}')">×</button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function loadBank(name){
+      let banks = {};
+      try{ banks = JSON.parse(localStorage.getItem(LS_KEYS.BANKS) || '{}') }catch{}
+
+      if(banks[name]){
+        setBankFromJSON(banks[name]);
+        $('jsonInput').value = JSON.stringify(banks[name], null, 2);
+        toast(`Banco "${name}" cargado ✅`);
+      }
+    }
+
+    function deleteBank(name){
+      if(!confirm(`¿Eliminar el banco "${name}"?`)) return;
+
+      let banks = {};
+      try{ banks = JSON.parse(localStorage.getItem(LS_KEYS.BANKS) || '{}') }catch{}
+
+      delete banks[name];
+      localStorage.setItem(LS_KEYS.BANKS, JSON.stringify(banks));
+      renderBanksList();
+      toast(`Banco "${name}" eliminado`);
+    }
+
+    function toast(msg){
+      const t = document.createElement('div');
+      t.textContent = msg; t.style.position='fixed'; t.style.bottom='18px'; t.style.right='18px'; t.style.padding='10px 14px'; t.style.background='rgba(0,0,0,.7)'; t.style.color='white'; t.style.borderRadius='10px'; t.style.backdropFilter='blur(6px)'; t.style.zIndex=99;
+      document.body.appendChild(t); setTimeout(()=>t.remove(), 1500);
+    }
+
+    // ====== Render de pregunta ======
+    function mixOptions(question){
+      // Devuelve {labels:[], correctIdx:set}
+      const idxs = question.options.map((_,i)=>i);
+      const mixed = shuffle(idxs);
+      const correctOrig = new Set(question.correct);
+      const correctNew = new Set(mixed.map((origIdx, newPos)=> correctOrig.has(origIdx) ? newPos : null).filter(v=>v!==null));
+      return { order: mixed, correct: correctNew };
+    }
+
+    function renderCurrent(){
+      if(!bank.length){
+        $('qText').textContent = 'Sin banco cargado. Pega tu JSON a la izquierda y presiona "Cargar JSON".';
+        $('options').innerHTML = '';
+        $('index').textContent = '';
+        $('bar').style.width = '0%';
+        return;
+      }
+
+      // elegir siguiente según modo
+      let qIndex;
+      if(mode === 'exam'){
+        qIndex = order[idx];
+      } else if(mode === 'review-failed'){
+        if(failedIdx >= failedQueue.length){
+          // Terminó el repaso de erradas
+          showFailedReviewComplete();
+          return;
+        }
+        qIndex = failedQueue[failedIdx];
+      } else {
+        qIndex = pickNextForReview();
+      }
+      const q = bank[qIndex];
+      const map = mixOptions(q);
+      current = { qIndex, q, map };
+
+      $('qText').textContent = q.question;
+      $('options').innerHTML = '';
+      for(let i=0;i<q.options.length;i++){
+        const newPos = i; // crearemos según map.order
+      }
+      // pintar siguiendo el orden mezclado
+      map.order.forEach((origIdx, newPos)=>{
+        const label = q.options[origIdx];
+        const id = `opt_${newPos}`;
+        const wrap = document.createElement('label');
+        wrap.className = 'opt';
+        wrap.innerHTML = `<input type="checkbox" id="${id}"><span>${label}</span>`;
+        $('options').appendChild(wrap);
+      });
+
+      const seen = Object.values(progress).reduce((a,p)=> a + (p.seen>0?1:0), 0);
+      const pct = Math.round((seen / bank.length) * 100);
+      $('bar').style.width = pct + '%';
+      if(mode === 'exam'){
+        $('index').textContent = `Pregunta ${idx+1} de ${order.length}`;
+      } else if(mode === 'review-failed'){
+        $('index').textContent = `Repaso Erradas: ${failedIdx+1} de ${failedQueue.length}`;
+      } else {
+        $('index').textContent = `Repaso (${getReviewQueue().length} pendientes)`;
+      }
+
+      $('feedback').style.display = 'none';
+      $('feedback').textContent = '';
+    }
+
+    function getSelected(){
+      if(!current) return [];
+      const boxes = Array.from($('options').querySelectorAll('input[type="checkbox"]'));
+      return boxes.map((b, i)=> b.checked ? i : null).filter(v=>v!==null);
+    }
+
+    function isCorrect(selected){
+      if(!current) return false;
+      const correctSet = current.map.correct;
+      if(selected.length !== correctSet.size) return false;
+      for(const i of selected){ if(!correctSet.has(i)) return false; }
+      return true;
+    }
+
+    function updateProgress(correct){
+      const p = ensureEntry(current.q);
+      p.seen += 1;
+      if(correct){
+        p.level = Math.min(5, p.level + 1);
+        p.next = now() + INTERVALS_MS[p.level];
+      } else {
+        p.level = 1; p.wrongs += 1; p.next = now() + INTERVALS_MS[p.level];
+      }
+      progress[p.id] = p; persist();
+      updateChips();
+    }
+
+    function onComprobar(){
+      if(!current) return;
+      const selected = getSelected();
+      const ok = isCorrect(selected);
+      updateProgress(ok);
+
+      // Registrar respuesta en la sesión de examen
+      if(mode === 'exam' && examSession.started){
+        const correctLabels = Array.from(current.map.correct).sort((a,b)=>a-b).map(i=> current.q.options[current.map.order[i]]);
+        const userLabels = selected.sort((a,b)=>a-b).map(i=> current.q.options[current.map.order[i]]);
+        examSession.answered.push({
+          question: current.q.question,
+          correct: ok,
+          correctAnswers: correctLabels,
+          userAnswers: userLabels
+        });
+      }
+
+      // Resaltar las respuestas seleccionadas por el usuario y deshabilitar checkboxes
+      const boxes = Array.from($('options').querySelectorAll('input[type="checkbox"]'));
+      const labels = Array.from($('options').querySelectorAll('.opt'));
+
+      boxes.forEach((box, i) => {
+        // Deshabilitar todos los checkboxes
+        box.disabled = true;
+
+        // Si el usuario seleccionó esta opción
+        if(box.checked){
+          // Verificar si era correcta
+          if(current.map.correct.has(i)){
+            labels[i].classList.add('user-correct');
+          } else {
+            labels[i].classList.add('user-incorrect');
+          }
+        }
+      });
+
+      // Deshabilitar los labels también
+      labels.forEach(label => label.classList.add('disabled'));
+
+      const fb = $('feedback');
+      fb.style.display = 'block';
+      if(ok){
+        fb.className = 'feedback ok';
+        fb.textContent = '✅ ¡Correcto!';
+      } else {
+        fb.className = 'feedback err';
+        const correctLabels = Array.from(current.map.correct).sort((a,b)=>a-b).map(i=> current.q.options[current.map.order[i]]);
+        fb.textContent = '❌ Incorrecto. Respuesta(s) correcta(s): ' + correctLabels.join(', ');
+      }
+    }
+
+    function onSiguiente(){
+      if(!bank.length) return;
+      if(mode==='exam'){
+        idx = idx + 1;
+        // Detectar si terminó el examen
+        if(idx >= order.length && examSession.started){
+          showExamSummary();
+          return;
+        }
+        if(idx >= order.length) idx = 0; // reiniciar si no hay sesión activa
+      } else if(mode === 'review-failed'){
+        failedIdx++;
+        // Si terminó el repaso de erradas, se maneja en renderCurrent()
+      }
+      renderCurrent();
+    }
+
+    function onMezclar(){
+      if(!bank.length) return;
+      order = shuffle(order);
+      idx = 0; renderCurrent(); toast('Preguntas mezcladas');
+    }
+
+    function pickNextForReview(){
+      // devolver índice de la siguiente pregunta para repaso según prioridad: vencidas primero, luego más bajo nivel, luego más falladas
+      const items = bank.map((q, i)=> ({ i, prog: ensureEntry(q) }));
+      const due = now();
+      // filtrar solo las que estén vencidas o casi vencidas
+      const candidates = items.filter(x=> x.prog.next <= due + 60e3);
+      if(!candidates.length){
+        // si no hay vencidas, toma la de nivel más bajo
+        items.sort((a,b)=> (a.prog.level - b.prog.level) || (b.prog.wrongs - a.prog.wrongs));
+        return items[0].i;
+      }
+      // ordenar por (nivel asc, next asc, wrongs desc)
+      candidates.sort((a,b)=>
+        (a.prog.level - b.prog.level) ||
+        (a.prog.next - b.prog.next) ||
+        (b.prog.wrongs - a.prog.wrongs)
+      );
+      return candidates[0].i;
+    }
+
+    function getReviewQueue(){
+      const due = now();
+      return bank.map((q,i)=>({i, p:ensureEntry(q)})).filter(x=> x.p.next <= due).map(x=>x.i);
+    }
+
+    function switchMode(){
+      mode = mode==='exam' ? 'review' : 'exam';
+      updateChips();
+      renderCurrent();
+      toast('Modo: ' + (mode==='exam'?'Examen':'Repaso'));
+    }
+
+    function exportProgress(){
+      const blob = new Blob([JSON.stringify(progress, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'progreso_quiz.json'; a.click();
+      setTimeout(()=> URL.revokeObjectURL(url), 5000);
+    }
+
+    function clearProgress(){
+      if(!confirm('¿Seguro que deseas reiniciar el progreso?')) return;
+      localStorage.removeItem(LS_KEYS.PROG);
+      loadProgress();
+      bank.forEach(ensureEntry);
+      toast('Progreso reiniciado');
+      updateChips();
+      renderCurrent();
+    }
+
+    function showExamSummary(){
+      // Calcular puntaje
+      const total = examSession.answered.length;
+      const correct = examSession.answered.filter(a => a.correct).length;
+      const score = total > 0 ? Math.round((correct / total) * 100) : 0;
+      const failed = examSession.answered.filter(a => !a.correct);
+
+      // Crear HTML del resumen
+      let html = `
+        <div style="text-align:center; margin-bottom:20px">
+          <div class="question" style="margin-bottom:16px">🎯 Examen Completado</div>
+          <div style="font-size:48px; font-weight:800; color:${score >= 70 ? 'var(--ok)' : 'var(--err)'}; margin:12px 0">
+            ${score}%
+          </div>
+          <div class="chip" style="font-size:14px; display:inline-block">
+            ${correct} de ${total} correctas
+          </div>
+        </div>
+      `;
+
+      if(failed.length > 0){
+        html += `
+          <div style="margin-top:24px">
+            <h3 style="margin-bottom:14px; color:var(--err)">❌ Preguntas falladas (${failed.length})</h3>
+        `;
+
+        failed.forEach((item, i) => {
+          html += `
+            <div style="background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.25); border-radius:12px; padding:14px; margin-bottom:10px">
+              <div style="font-weight:700; margin-bottom:8px">${i+1}. ${item.question}</div>
+              <div style="font-size:13px; opacity:.9; margin-bottom:4px">
+                <strong style="color:var(--err)">Tu respuesta:</strong> ${item.userAnswers.length > 0 ? item.userAnswers.join(', ') : '(ninguna)'}
+              </div>
+              <div style="font-size:13px; opacity:.9">
+                <strong style="color:var(--ok)">Correcta:</strong> ${item.correctAnswers.join(', ')}
+              </div>
+            </div>
+          `;
+        });
+
+        html += `</div>`;
+      } else {
+        html += `
+          <div style="text-align:center; padding:20px; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); border-radius:12px">
+            <div style="font-size:32px; margin-bottom:8px">🎉</div>
+            <div style="font-weight:700; color:var(--ok)">¡Perfecto! Todas las respuestas correctas</div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+          <button onclick="restartExam()" class="btn ok">Nuevo Examen</button>
+          ${failed.length > 0 ? '<button onclick="startReviewFailed()" class="btn warn">Repasar Erradas</button>' : ''}
+          <button onclick="closeExamSummary()" class="btn ghost">Cerrar</button>
+        </div>
+      `;
+
+      // Mostrar el resumen
+      $('qText').innerHTML = html;
+      $('options').innerHTML = '';
+      $('btnComprobar').style.display = 'none';
+      $('btnSiguiente').style.display = 'none';
+      $('feedback').style.display = 'none';
+    }
+
+    function restartExam(){
+      examSession = { answered: [], started: true };
+      order = shuffle(bank.map((_,i)=>i));
+      idx = 0;
+      $('btnComprobar').style.display = '';
+      $('btnSiguiente').style.display = '';
+      renderCurrent();
+      toast('Nuevo examen iniciado');
+    }
+
+    function closeExamSummary(){
+      examSession = { answered: [], started: false };
+      idx = 0;
+      $('btnComprobar').style.display = '';
+      $('btnSiguiente').style.display = '';
+      renderCurrent();
+    }
+
+    function startReviewFailed(){
+      // Crear cola solo con las preguntas erradas del último examen
+      failedQueue = [];
+      examSession.answered.forEach(ans => {
+        if(!ans.correct){
+          // Buscar el índice de esta pregunta en el banco
+          const qIdx = bank.findIndex(q => q.question === ans.question);
+          if(qIdx !== -1){
+            failedQueue.push(qIdx);
+          }
+        }
+      });
+
+      // Cambiar a modo repaso de erradas
+      mode = 'review-failed';
+      failedIdx = 0;
+      examSession = { answered: [], started: false };
+      idx = 0;
+      $('btnComprobar').style.display = '';
+      $('btnSiguiente').style.display = '';
+      updateChips();
+      renderCurrent();
+      toast(`Repasando ${failedQueue.length} pregunta(s) errada(s)`);
+    }
+
+    function showFailedReviewComplete(){
+      let html = `
+        <div style="text-align:center; margin-bottom:20px">
+          <div class="question" style="margin-bottom:16px">✅ Repaso Completado</div>
+          <div style="font-size:18px; margin:12px 0; opacity:.9">
+            Has repasado todas las preguntas erradas
+          </div>
+        </div>
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+          <button onclick="restartFailedReview()" class="btn warn">Repasar de nuevo</button>
+          <button onclick="returnToExamMode()" class="btn ok">Volver a Exámenes</button>
+          <button onclick="switchMode()" class="btn ghost">Modo Repaso General</button>
+        </div>
+      `;
+
+      $('qText').innerHTML = html;
+      $('options').innerHTML = '';
+      $('btnComprobar').style.display = 'none';
+      $('btnSiguiente').style.display = 'none';
+      $('feedback').style.display = 'none';
+    }
+
+    function restartFailedReview(){
+      failedIdx = 0;
+      $('btnComprobar').style.display = '';
+      $('btnSiguiente').style.display = '';
+      renderCurrent();
+      toast('Repaso reiniciado');
+    }
+
+    function returnToExamMode(){
+      mode = 'exam';
+      failedQueue = [];
+      failedIdx = 0;
+      examSession = { answered: [], started: false };
+      idx = 0;
+      $('btnComprobar').style.display = '';
+      $('btnSiguiente').style.display = '';
+      updateChips();
+      renderCurrent();
+      toast('Modo Examen');
+    }
+
+    // ====== Eventos ======
+    $('btnCargar').addEventListener('click', loadJSON);
+    $('btnGuardar').addEventListener('click', saveJSON);
+    $('btnComprobar').addEventListener('click', onComprobar);
+    $('btnSiguiente').addEventListener('click', onSiguiente);
+    $('btnNuevoExamen').addEventListener('click', restartExam);
+    $('btnModo').addEventListener('click', switchMode);
+    $('btnExportar').addEventListener('click', exportProgress);
+    $('btnLimpiar').addEventListener('click', clearProgress);
+
+    // ====== Inicialización ======
+    loadProgress();
+    loadSavedDataToTextarea();
+    renderBanksList();
+
+    // Si hay datos guardados, cargarlos automáticamente para comenzar rápido
+    try{
+      const saved = localStorage.getItem(LS_KEYS.DATA);
+      if(saved){ setBankFromJSON(JSON.parse(saved)); }
+    }catch{}
+
+    // Atajos de teclado
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' && (e.metaKey||e.ctrlKey)) onComprobar();
+      if(e.key==='ArrowRight') onSiguiente();
+    });
+  </script>
+</body>
+</html>
